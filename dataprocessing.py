@@ -19,6 +19,7 @@ from sklearn.preprocessing import LabelEncoder
 from sklearn.datasets import make_classification
 import platform
 import time
+from sklearn.metrics import roc_curve, auc
 
 
 # Throw data into the project
@@ -242,7 +243,71 @@ accuracy_rf = fit_rf.score(gx_test, gy_test)
 print("Here is our mean accuracy on the test set:\n {0:.3f}"\
       .format(accuracy_rf))
 
+#%%
+# ROC AUC
+predictions_prob = fit_rf.predict_proba(gx_test)[:, 1]
 
+fpr2, tpr2, _ = roc_curve(gy_test,
+                          predictions_prob,
+                          pos_label=1)
+
+auc_rf = auc(fpr2, tpr2)
+
+
+def plot_roc_curve(fpr, tpr, auc, estimator, xlim=None, ylim=None):
+    """
+    Purpose
+    ----------
+    Function creates ROC Curve for respective model given selected parameters.
+    Optional x and y limits to zoom into graph
+
+    Parameters
+    ----------
+    * fpr: Array returned from sklearn.metrics.roc_curve for increasing
+            false positive rates
+    * tpr: Array returned from sklearn.metrics.roc_curve for increasing
+            true positive rates
+    * auc: Float returned from sklearn.metrics.auc (Area under Curve)
+    * xlim: Set upper and lower x-limits
+    * ylim: Set upper and lower y-limits
+    """
+    my_estimators = {
+              'rf': ['Random Forest', 'red']
+              }
+
+    try:
+        plot_title = my_estimators[estimator][0]
+        color_value = my_estimators[estimator][1]
+    except KeyError as e:
+        print("'{0}' does not correspond with the appropriate key inside the estimators dictionary. \
+\nPlease refer to function to check `my_estimators` dictionary.".format(estimator))
+        raise
+
+    fig, ax = plt.subplots(figsize=(10, 10))
+    ax.set_facecolor('#fafafa')
+
+    plt.plot(fpr, tpr,
+             color=color_value,
+             linewidth=1)
+    plt.title('ROC Curve For {0} (AUC = {1: 0.3f})'\
+              .format(plot_title, auc))
+
+    plt.plot([0, 1], [0, 1], 'k--', lw=2) # Add Diagonal line
+    plt.plot([0, 0], [1, 0], 'k--', lw=2, color = 'black')
+    plt.plot([1, 0], [1, 1], 'k--', lw=2, color = 'black')
+    if xlim is not None:
+        plt.xlim(*xlim)
+    if ylim is not None:
+        plt.ylim(*ylim)
+    plt.xlabel('False Positive Rate')
+    plt.ylabel('True Positive Rate')
+    plt.show()
+    plt.close()
+
+    #%%
+    plot_roc_curve(fpr2, tpr2, auc_rf, 'rf',
+                   xlim=(-0.01, 1.05),
+                   ylim=(0.001, 1.05))
 
 #%%
 # MSI random Forest
@@ -377,6 +442,23 @@ plt.show()
 accuracy_rf = fit_rf.score(gx_test, gy_test)
 print("Here is our mean accuracy on the test set:\n {0:.3f}"\
       .format(accuracy_rf))
+
+#%%
+# ROC AUC
+predictions_prob = fit_rf.predict_proba(gx_test)[:, 1]
+
+fpr2, tpr2, _ = roc_curve(gy_test,
+                          predictions_prob,
+                          pos_label=1)
+
+auc_rf = auc(fpr2, tpr2)
+
+
+plot_roc_curve(fpr2, tpr2, auc_rf, 'rf',
+                xlim=(-0.01, 1.05),
+                ylim=(0.001, 1.05))
+
+
 
 # TODOs for next week?if I still have time
 # TODO feature_selection
