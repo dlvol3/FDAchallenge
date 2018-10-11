@@ -381,3 +381,4 @@ print("Here is our mean accuracy on the test set:\n {0:.3f}"\
 # TODOs for next week?if I still have time
 # TODO feature_selection
 # TODO lightGBM for this two models
+# TODO try:msi with the undersampling
