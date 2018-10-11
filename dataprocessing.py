@@ -143,7 +143,8 @@ print('Time taken in grid search: {0: .2f}'.format(end - start))
 fit_rf.set_params(criterion='gini',
                   max_features=None,
                   max_depth=2,
-                  bootstrap=True)
+                  bootstrap=True,
+                  n_estimators=200)
 
 fit_rf.fit(gx_train, gy_train)
 
@@ -236,3 +237,147 @@ plt.ylabel('Actual Values')
 plt.title('Actual vs. Predicted Confusion Matrix')
 plt.show()
 
+#%%
+accuracy_rf = fit_rf.score(gx_test, gy_test)
+print("Here is our mean accuracy on the test set:\n {0:.3f}"\
+      .format(accuracy_rf))
+
+
+
+#%%
+# MSI random Forest
+#%%
+colgen = msil.shape[1]
+gx = msil.iloc[:, 1:colgen].values   # Features for training
+gy = msil.iloc[:, 0].values  # Labels of training
+
+
+gx_train, gx_test, gy_train, gy_test = train_test_split(gx, gy, test_size=0.3, random_state=123)
+
+# Grid search for the best Hyperpara.
+fit_rf = RandomForestClassifier(random_state=42)
+
+np.random.seed(123)
+start = time.time()
+
+param_dist = {'max_depth': [2,3,4,5,6,7,8,10],
+              'bootstrap': [True, False],
+              'max_features': ['auto', 'sqrt', 'log2', None],
+              'criterion': ['gini', 'entropy']}
+
+cv_rf = GridSearchCV(fit_rf, cv=10,
+                     param_grid=param_dist,
+                     n_jobs = 3)
+
+cv_rf.fit(gx_train, gy_train)
+print('Best Parameters using grid search: \n',
+      cv_rf.best_params_)
+end = time.time()
+print('Time taken in grid search: {0: .2f}'.format(end - start))
+#%%
+fit_rf.set_params(criterion='gini',
+                  max_features='auto',
+                  max_depth=2,
+                  bootstrap=False,
+                  n_estimators=300,
+                  class_weight='balanced_subsample')
+
+fit_rf.fit(gx_train, gy_train)
+
+
+#%%
+def cross_val_metrics(fit, training_set, class_set, estimator, print_results = True):
+    """
+    Purpose
+    ----------
+    Function helps automate cross validation processes while including
+    option to print metrics or store in variable
+
+    Parameters
+    ----------
+    fit: Fitted model
+    training_set:  Data_frame containing 80% of original dataframe
+    class_set:     data_frame containing the respective target vaues
+                      for the training_set
+    print_results: Boolean, if true prints the metrics, else saves metrics as
+                      variables
+
+    Returns
+    ----------
+    scores.mean(): Float representing cross validation score
+    scores.std() / 2: Float representing the standard error (derived
+                from cross validation score's standard deviation)
+    """
+    my_estimators = {
+        'rf': 'estimators_',
+    }
+    try:
+        # Captures whether first parameter is a model
+        if not hasattr(fit, 'fit'):
+            return print("'{0}' is not an instantiated model from scikit-learn".format(fit))
+
+        # Captures whether the model has been trained
+        if not vars(fit)[my_estimators[estimator]]:
+            return print("Model does not appear to be trained.")
+
+    except KeyError as e:
+        print("'{0}' does not correspond with the appropriate key inside the estimators dictionary. \
+\nPlease refer to function to check `my_estimators` dictionary.".format(estimator))
+        raise
+
+    n = KFold(n_splits=10)
+    scores = cross_val_score(fit,
+                             training_set,
+                             class_set,
+                             cv = n)
+    if print_results:
+        for i in range(0, len(scores)):
+            print("Cross validation run {0}: {1: 0.3f}".format(i, scores[i]))
+        print("Accuracy: {0: 0.3f} (+/- {1: 0.3f})"\
+              .format(scores.mean(), scores.std() / 2))
+    else:
+        return scores.mean(), scores.std() / 2
+
+#%%
+cross_val_metrics(fit_rf,
+                  gx_train,
+                  gy_train,
+                  'rf',
+                  print_results=True)
+
+#%%
+predictions_rf = fit_rf.predict(gx_test)
+
+
+# Func for CM
+def create_conf_mat(test_class_set, predictions):
+    """Function returns confusion matrix comparing two arrays"""
+    if len(test_class_set.shape) != len(predictions.shape) == 1:
+        return print('Arrays entered are not 1-D.\nPlease enter the correctly sized sets.')
+    elif test_class_set.shape != predictions.shape:
+        return print('Number of values inside the Arrays are not equal to each other.\n'
+                     'Please make sure the array has the same number of instances.')
+    else:
+        # Set Metrics
+        test_crosstb_comp = pd.crosstab(index=test_class_set,
+                                        columns=predictions)
+        # Changed for Future deprecation of as_matrix
+        test_crosstb = test_crosstb_comp.values
+        return test_crosstb
+
+
+conf_mat = create_conf_mat(gy_test, predictions_rf)
+sns.heatmap(conf_mat, annot=True, fmt='d', cbar=False)
+plt.xlabel('Predicted Values')
+plt.ylabel('Actual Values')
+plt.title('Actual vs. Predicted Confusion Matrix')
+plt.show()
+
+#%%
+accuracy_rf = fit_rf.score(gx_test, gy_test)
+print("Here is our mean accuracy on the test set:\n {0:.3f}"\
+      .format(accuracy_rf))
+
+# TODOs for next week?if I still have time
+# TODO feature_selection
+# TODO lightGBM for this two models
