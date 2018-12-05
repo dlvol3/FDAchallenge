@@ -23,10 +23,11 @@ from sklearn.metrics import roc_curve, auc
 
 
 # Throw data into the project
-prout = pd.read_table('/Users/yue/Desktop/precisionFDA/2018-mislabelingCorrectionChallenge/data/train_pro.tsv', sep='\t')
+prout = pd.read_table('P:/VM/precisionFDA/2018-mislabelingCorrectionChallenge/data/train_pro.tsv', sep='\t')
 pro = prout.transpose()
-cli = pd.read_table('/Users/yue/Desktop/precisionFDA/2018-mislabelingCorrectionChallenge/data/realpredict.txt', sep='\t')
-
+cli = pd.read_table('P:/VM/precisionFDA/2018-mislabelingCorrectionChallenge/data/realpredict.txt', sep='\t')
+protest = pd.read_table('P:/VM/precisionFDA/2018-mislabelingCorrectionChallenge/data/test_pro.tsv', sep='\t')
+prot = protest.transpose()
 # Left join, only keep the real predictions
 pro['sample'] = pro.index
 dr = cli.merge(pro, how='left')
@@ -70,6 +71,7 @@ Missing_values.head(10)
 
 # replace
 nona = dr.fillna(0)
+prot1 = prot.fillna(0)
 
 # Separate the gender and msi into two dataframes
 genindex = list(range(3, len(nona.columns), 1))
@@ -211,8 +213,17 @@ cross_val_metrics(fit_rf,
                   print_results=True)
 
 #%%
-predictions_rf = fit_rf.predict(gx_test)
+# prot1 = prot1.reset_index()
+prot2 = prot1.as_matrix().astype(np.float)
+fit_rf.fit(gx, gy)
 
+Missing_values = missing_value_table(prot1)
+predictions_rf = fit_rf.predict(prot1)
+predictions_rf_train = fit_rf.predict(gx)
+
+np.savetxt("gendertrain.txt", predictions_rf_train, delimiter='\t')
+
+np.savetxt("gendertest.txt", predictions_rf, delimiter='\t')
 
 # Func for CM
 def create_conf_mat(test_class_set, predictions):
@@ -781,17 +792,18 @@ originalselection.insert(0, 0)
 msinerf = msil.iloc[:, nerflistselection]
 
 msiorigin = msil.iloc[:, originalselection]
+genderorigin = genl.iloc[:, originalselection]
+colorigin = genderorigin.shape[1]
+
+xgen = genderorigin.iloc[:, 1:colorigin].values
+ygen = genderorigin.iloc[:, 0].values
 
 
 colmsi = msil.shape[1]
 colnerf = msinerf.shape[1]
 colorigin = msiorigin.shape[1]
 
-xmsi = msil.iloc[:, 1:colmsi].values   # Features for training
-ymsi = msil.iloc[:, 0].values  # Labels of training
-
-xnerf = msinerf.iloc[:, 1:colnerf].values
-ynerf = msinerf.iloc[:, 0].values
+prot2 = prot1.iloc[:, originalselection]
 
 xorigin = msiorigin.iloc[:, 1:colorigin].values
 yorigin = msiorigin.iloc[:, 0].values
@@ -953,10 +965,10 @@ for i in range(1, 100, 12):
     # print('Time taken in grid search: {0: .2f}'.format(end - start))
     #%%
     fit_rf.set_params(criterion='gini',
-                      max_features='log2',
+                      max_features=None,
                       max_depth=3,
                       bootstrap=True,
-                      n_estimators=300,
+                      n_estimators=600,
                       class_weight='balanced_subsample')
 
     fit_rf.fit(gx_train, gy_train)
@@ -1184,3 +1196,25 @@ for i in range(1, 100, 12):
     accuracy_rf = fit_rf.score(gx_test, gy_test)
     print("Here is our mean accuracy on the test set:\n {0:.3f}"\
           .format(accuracy_rf))
+#%% Output of FI random forest gender
+
+
+
+
+    fit_rf.fit(xorigin, yorigin)
+
+    predictions_rf_msi = fit_rf.predict(prot2)
+    predictions_rf_train_msi = fit_rf.predict(xorigin)
+
+    np.savetxt("msitest.txt", predictions_rf_msi, delimiter='\t')
+    np.savetxt("msitrain.txt", predictions_rf_train_msi, delimiter='\t')
+
+
+
+    fit_rf.fit(xgen, ygen)
+
+    predictions_rf_gen = fit_rf.predict(prot2)
+    predictions_rf_train_gen = fit_rf.predict(xgen)
+
+    np.savetxt("gentest.txt", predictions_rf_gen, delimiter='\t')
+    np.savetxt("gentrain.txt", predictions_rf_train_gen, delimiter='\t')
